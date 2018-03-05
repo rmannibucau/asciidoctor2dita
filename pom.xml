@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.github.rmannibucau</groupId>
   <artifactId>asciidoc2dita-backend</artifactId>
-  <version>0.0.1</version>
+  <version>0.0.1-SNAPSHOT</version>
   <name>Asciidoc To Dita Maven Plugin</name>
   <description>Light asciidoc to dita maven converter.</description>
   <url>https://github.com/rmannibucau/asciidoc2dita-backend</url>
@@ -87,7 +89,7 @@
     <connection>scm:git:https://github.com/rmannibucau/asciidoc2dita-backend.git</connection>
     <developerConnection>scm:git:https://github.com/rmannibucau/asciidoc2dita-backend.git</developerConnection>
     <url>https://github.com/rmannibucau/asciidoc2dita-backend</url>
-    <tag>asciidoc2dita-backend-0.0.1</tag>
+    <tag>HEAD</tag>
   </scm>
   
   <licenses>
