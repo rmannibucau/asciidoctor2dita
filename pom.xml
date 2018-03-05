@@ -5,11 +5,11 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.github.rmannibucau</groupId>
-  <artifactId>asciidoc2dita-backend</artifactId>
+  <artifactId>asciidoc2dita</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>Asciidoc To Dita Maven Plugin</name>
   <description>Light asciidoc to dita maven converter.</description>
-  <url>https://github.com/rmannibucau/asciidoc2dita-backend</url>
+  <url>https://github.com/rmannibucau/asciidoc2dita</url>
   <packaging>maven-plugin</packaging>
 
   <properties>
@@ -86,16 +86,16 @@
   </distributionManagement>
 
   <scm>
-    <connection>scm:git:https://github.com/rmannibucau/asciidoc2dita-backend.git</connection>
-    <developerConnection>scm:git:https://github.com/rmannibucau/asciidoc2dita-backend.git</developerConnection>
-    <url>https://github.com/rmannibucau/asciidoc2dita-backend</url>
+    <connection>scm:git:https://github.com/rmannibucau/asciidoc2dita.git</connection>
+    <developerConnection>scm:git:https://github.com/rmannibucau/asciidoc2dita.git</developerConnection>
+    <url>https://github.com/rmannibucau/asciidoc2dita</url>
     <tag>HEAD</tag>
   </scm>
   
   <licenses>
     <license>
       <name>Apache License, Version 2.0</name>
-      <url>https://github.com/rmannibucau/asciidoc2dita-backend/blob/master/LICENSE</url>
+      <url>https://github.com/rmannibucau/asciidoc2dita/blob/master/LICENSE</url>
       <distribution>may be downloaded from the Maven repository</distribution>
     </license>
   </licenses>
@@ -125,7 +125,7 @@
           </execution>
         </executions>
         <configuration>
-          <goalPrefix>asciidoc2dita-backend</goalPrefix>
+          <goalPrefix>asciidoc2dita</goalPrefix>
           <skipErrorNoDescriptorsFound>true</skipErrorNoDescriptorsFound>
         </configuration>
       </plugin>
