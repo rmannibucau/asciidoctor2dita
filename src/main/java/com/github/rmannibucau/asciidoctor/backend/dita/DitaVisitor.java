@@ -151,6 +151,11 @@ public class DitaVisitor implements DocumentVisitor {
     }
 
     @Override
+    public String onLink(final String value) {
+        return "<xref href=\"" + value + "\">" + value + "</xref>";
+    }
+
+    @Override
     public String onStrong(final String value) {
         return "<b>" + value + "</b>";
     }
@@ -173,6 +178,9 @@ public class DitaVisitor implements DocumentVisitor {
     private String extractId(final StructuralNode document, final String title) {
         String idBase = ofNullable(document.getId())
                 .orElseGet(() -> ofNullable(title).map(t -> t.replace(" ", "_")).orElse(null));
+        if (idBase == null) {
+            return null;
+        }
         int i = 1;
         while (!ids.add(idBase)) {
             idBase += i++;

@@ -46,6 +46,8 @@ public interface DocumentVisitor {
 
     String onXref(String value, String title);
 
+    String onLink(String value);
+
     String onTable(Table table, String transform, Map<Object, Object> opts,
                    Function<Cell, String> cellConverter);
 }

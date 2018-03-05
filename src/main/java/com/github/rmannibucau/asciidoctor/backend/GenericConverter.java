@@ -49,6 +49,9 @@ public class GenericConverter extends StringConverter implements ConverterRegist
             return visitor.onDocument(document, transform, opts, () -> convertChildren(document));
         } else if (Section.class.isInstance(node)) {
             final Section section = Section.class.cast(node);
+            if (section.getBlocks().isEmpty()) {
+                return "";
+            }
             return visitor.onSection(section, transform, opts, () -> convertChildren(section));
         } else if (Block.class.isInstance(node)) {
             final Block block = Block.class.cast(node);
@@ -99,6 +102,8 @@ public class GenericConverter extends StringConverter implements ConverterRegist
                     return visitor.onEmphasis(text);
                 case "xref":
                     return visitor.onXref(text, phraseNode.getAttribute("refid", "#").toString());
+                case "link":
+                    return visitor.onLink(text);
                 default:
                     throw new IllegalArgumentException("Unsupported phrase node type: " + type);
             }
