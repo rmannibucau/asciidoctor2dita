@@ -2,6 +2,7 @@ package com.github.rmannibucau.asciidoctor.backend;
 
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.asciidoctor.ast.Block;
 import org.asciidoctor.ast.Cell;
@@ -13,25 +14,25 @@ import org.asciidoctor.ast.Table;
 
 public interface DocumentVisitor {
     String onDocument(Document document, String transform, Map<Object, Object> opts,
-                      String content);
+                      Supplier<String> contentSupplier);
 
     String onSection(Section section, String transform, Map<Object, Object> opts,
-                     String content);
+                     Supplier<String> contentSupplier);
 
     String onListing(Block block, String transform, Map<Object, Object> opts,
-                     String content);
+                     Supplier<String> contentSupplier);
 
     String onPreamble(Block block, String transform, Map<Object, Object> opts,
-                      String content);
+                      Supplier<String> contentSupplier);
 
     String onParagraph(Block block, String transform, Map<Object, Object> opts,
-                       String content);
+                       Supplier<String> contentSupplier);
 
     String onImage(Block block, String transform, Map<Object, Object> opts,
                    String alt, String path);
 
     String onAdmonition(Block block, String transform, Map<Object, Object> opts,
-                        String label, String content);
+                        String label, Supplier<String> contentSupplier);
 
     String onListItem(ListItem item);
 
@@ -42,6 +43,8 @@ public interface DocumentVisitor {
     String onStrong(String value);
 
     String onEmphasis(String value);
+
+    String onXref(String value, String title);
 
     String onTable(Table table, String transform, Map<Object, Object> opts,
                    Function<Cell, String> cellConverter);

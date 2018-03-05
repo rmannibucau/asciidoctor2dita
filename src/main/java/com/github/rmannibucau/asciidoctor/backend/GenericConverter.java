@@ -10,8 +10,6 @@ import static java.util.stream.Collectors.joining;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 
-import com.github.rmannibucau.asciidoctor.backend.dita.DitaVisitor;
-
 import org.apache.commons.text.StringEscapeUtils;
 import org.asciidoctor.Asciidoctor;
 import org.asciidoctor.ast.Block;
@@ -26,6 +24,8 @@ import org.asciidoctor.ast.Table;
 import org.asciidoctor.converter.ConverterFor;
 import org.asciidoctor.converter.StringConverter;
 import org.asciidoctor.converter.spi.ConverterRegistry;
+
+import com.github.rmannibucau.asciidoctor.backend.dita.DitaVisitor;
 
 @ConverterFor("dita")
 public class GenericConverter extends StringConverter implements ConverterRegistry {
@@ -46,33 +46,39 @@ public class GenericConverter extends StringConverter implements ConverterRegist
     public String convert(final ContentNode node, final String transform, final Map<Object, Object> opts) {
         if (Document.class.isInstance(node)) {
             final Document document = Document.class.cast(node);
-            return visitor.onDocument(document, transform, opts, convertChildren(document));
+            return visitor.onDocument(document, transform, opts, () -> convertChildren(document));
         } else if (Section.class.isInstance(node)) {
             final Section section = Section.class.cast(node);
-            return visitor.onSection(section, transform, opts, convertChildren(section));
+            return visitor.onSection(section, transform, opts, () -> convertChildren(section));
         } else if (Block.class.isInstance(node)) {
             final Block block = Block.class.cast(node);
             final String context = block.getContext();
             final Map<String, Object> attributes = block.getAttributes();
-            final String content = block.getLines().stream().collect(joining("\n"));
 
             switch (ofNullable(context).orElse("").toLowerCase(ROOT)) {
                 case "listing":
-                    return visitor.onListing(block, transform, opts, block.getLines().stream().collect(joining("\n")));
+                    return visitor.onListing(block, transform, opts, () -> block.getLines().stream().collect(joining("\n")));
                 case "paragraph":
-                    return visitor.onParagraph(block, transform, opts, block.getLines().stream().collect(joining("\n")));
+                    return visitor.onParagraph(block, transform, opts, () -> {
+                        final String content = block.getLines()
+                                              .stream()
+                                              .collect(joining("\n"));
+                        if (content.length() > 2 && content.startsWith("`") && content.endsWith("`")) {
+                            return visitor.onMonospaced(content.substring(1, content.length() - 1));
+                        }
+                        return content;
+                    });
                 case "preamble":
-                    final String children = convertChildren(block);
                     if (preambleAsParagraph) {
-                        return visitor.onParagraph(block, transform, opts, children);
+                        return visitor.onParagraph(block, transform, opts, () -> convertChildren(block));
                     }
-                    return visitor.onPreamble(block, transform, opts, children);
+                    return visitor.onPreamble(block, transform, opts, () -> convertChildren(block));
                 case "image":
                     final String path = attributes.get("target").toString();
                     return visitor.onImage(block, transform, opts, attributes.getOrDefault("alt", path).toString(), path);
                 case "admonition":
                     final String label = String.valueOf(attributes.getOrDefault("textlabel", "Note"));
-                    return visitor.onAdmonition(block, transform, opts, label, content);
+                    return visitor.onAdmonition(block, transform, opts, label, () -> block.getLines().stream().collect(joining("\n")));
                 default:
                     throw new IllegalArgumentException("Unsupported block type: " + context);
             }
@@ -91,6 +97,8 @@ public class GenericConverter extends StringConverter implements ConverterRegist
                     return visitor.onStrong(text);
                 case "emphasis":
                     return visitor.onEmphasis(text);
+                case "xref":
+                    return visitor.onXref(text, phraseNode.getAttribute("refid", "#").toString());
                 default:
                     throw new IllegalArgumentException("Unsupported phrase node type: " + type);
             }
