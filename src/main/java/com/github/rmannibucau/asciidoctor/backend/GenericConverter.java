@@ -15,6 +15,7 @@ import org.asciidoctor.Asciidoctor;
 import org.asciidoctor.ast.Block;
 import org.asciidoctor.ast.Cell;
 import org.asciidoctor.ast.ContentNode;
+import org.asciidoctor.ast.DescriptionList;
 import org.asciidoctor.ast.Document;
 import org.asciidoctor.ast.List;
 import org.asciidoctor.ast.PhraseNode;
@@ -82,9 +83,15 @@ public class GenericConverter extends StringConverter implements ConverterRegist
                 case "admonition":
                     final String label = String.valueOf(attributes.getOrDefault("textlabel", "Note"));
                     return visitor.onAdmonition(block, transform, opts, label, () -> block.getLines().stream().collect(joining("\n")));
+                case "pass":
+                    return visitor.onPassthrough(block, transform, opts, () -> block.getLines().stream().collect(joining("\n")));
+                case "quote":
+                    return visitor.onQuote(block, transform, opts, () -> block.getLines().stream().collect(joining("\n")));
                 default:
                     throw new IllegalArgumentException("Unsupported block type: " + context);
             }
+        } else if (DescriptionList.class.isInstance(node)) {
+            return visitor.onDescriptionList(DescriptionList.class.cast(node), transform, opts);
         } else if (List.class.isInstance(node)) {
             return visitor.onList(List.class.cast(node), transform, opts);
         } else if (PhraseNode.class.isInstance(node)) {

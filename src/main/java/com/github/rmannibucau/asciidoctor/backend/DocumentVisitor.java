@@ -6,9 +6,9 @@ import java.util.function.Supplier;
 
 import org.asciidoctor.ast.Block;
 import org.asciidoctor.ast.Cell;
+import org.asciidoctor.ast.DescriptionList;
 import org.asciidoctor.ast.Document;
 import org.asciidoctor.ast.List;
-import org.asciidoctor.ast.ListItem;
 import org.asciidoctor.ast.Section;
 import org.asciidoctor.ast.Table;
 
@@ -34,7 +34,7 @@ public interface DocumentVisitor {
     String onAdmonition(Block block, String transform, Map<Object, Object> opts,
                         String label, Supplier<String> contentSupplier);
 
-    String onListItem(ListItem item);
+    String onDescriptionList(DescriptionList list, String transform, Map<Object, Object> opts);
 
     String onList(List list, String transform, Map<Object, Object> opts);
 
@@ -50,4 +50,8 @@ public interface DocumentVisitor {
 
     String onTable(Table table, String transform, Map<Object, Object> opts,
                    Function<Cell, String> cellConverter);
+
+    String onPassthrough(Block block, String transform, Map<Object, Object> opts, Supplier<String> contentSupplier);
+
+    String onQuote(Block block, String transform, Map<Object, Object> opts, Supplier<String> contentSupplier);
 }

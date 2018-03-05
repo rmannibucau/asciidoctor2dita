@@ -230,7 +230,7 @@ public class Adoc2DitaMojo extends AbstractMojo {
 
     private void attach(final String ext, final File output) {
         if (attach) {
-            getLog().info("Attaching Custom Meecrowave Distribution (" + ext + ")");
+            getLog().info("Attaching dita files as a " + ext);
             if (classifier != null) {
                 projectHelper.attachArtifact(project, ext, classifier, output);
             } else {
