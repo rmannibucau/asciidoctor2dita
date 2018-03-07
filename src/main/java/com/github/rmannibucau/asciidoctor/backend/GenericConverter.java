@@ -61,16 +61,16 @@ public class GenericConverter extends StringConverter implements ConverterRegist
 
             switch (ofNullable(context).orElse("").toLowerCase(ROOT)) {
                 case "listing":
-                    return visitor.onListing(block, transform, opts, () -> block.getLines().stream().collect(joining("\n")));
+                    return visitor.onListing(block, transform, opts, () -> visitor.transformRawContent(block.getLines().stream().collect(joining("\n"))));
                 case "paragraph":
                     return visitor.onParagraph(block, transform, opts, () -> {
                         final String content = block.getLines()
                                               .stream()
                                               .collect(joining("\n"));
                         if (content.length() > 2 && content.startsWith("`") && content.endsWith("`")) {
-                            return visitor.onMonospaced(content.substring(1, content.length() - 1));
+                            return visitor.onMonospaced(visitor.transformRawContent(content.substring(1, content.length() - 1)));
                         }
-                        return content;
+                        return visitor.transformRawContent(content);
                     });
                 case "preamble":
                     if (preambleAsParagraph) {
@@ -82,11 +82,11 @@ public class GenericConverter extends StringConverter implements ConverterRegist
                     return visitor.onImage(block, transform, opts, attributes.getOrDefault("alt", path).toString(), path);
                 case "admonition":
                     final String label = String.valueOf(attributes.getOrDefault("textlabel", "Note"));
-                    return visitor.onAdmonition(block, transform, opts, label, () -> block.getLines().stream().collect(joining("\n")));
+                    return visitor.onAdmonition(block, transform, opts, label, () -> visitor.transformRawContent(block.getLines().stream().collect(joining("\n"))));
                 case "pass":
-                    return visitor.onPassthrough(block, transform, opts, () -> block.getLines().stream().collect(joining("\n")));
+                    return visitor.onPassthrough(block, transform, opts, () -> visitor.transformRawContent(block.getLines().stream().collect(joining("\n"))));
                 case "quote":
-                    return visitor.onQuote(block, transform, opts, () -> block.getLines().stream().collect(joining("\n")));
+                    return visitor.onQuote(block, transform, opts, () -> visitor.transformRawContent(block.getLines().stream().collect(joining("\n"))));
                 default:
                     throw new IllegalArgumentException("Unsupported block type: " + context);
             }
@@ -98,7 +98,7 @@ public class GenericConverter extends StringConverter implements ConverterRegist
             final PhraseNode phraseNode = PhraseNode.class.cast(node);
             final String context = phraseNode.getContext();
             final String type = phraseNode.getType();
-            final String text = "quoted".equals(context) ? StringEscapeUtils.unescapeHtml4(phraseNode.getText()) : phraseNode.getText();
+            final String text = "quoted".equals(context) ? visitor.transformRawContent(phraseNode.getText()) : phraseNode.getText();
 
             switch (ofNullable(type).orElse("")) {
                 case "monospaced":

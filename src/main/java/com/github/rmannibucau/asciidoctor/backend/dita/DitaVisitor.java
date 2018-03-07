@@ -11,8 +11,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import com.github.rmannibucau.asciidoctor.backend.DocumentVisitor;
-
 import org.apache.commons.text.StringEscapeUtils;
 import org.asciidoctor.ast.Block;
 import org.asciidoctor.ast.Cell;
@@ -26,6 +24,8 @@ import org.asciidoctor.ast.Section;
 import org.asciidoctor.ast.StructuralNode;
 import org.asciidoctor.ast.Table;
 
+import com.github.rmannibucau.asciidoctor.backend.DocumentVisitor;
+
 public class DitaVisitor implements DocumentVisitor {
 
     private final Collection<String> ids = new HashSet<>();
@@ -37,7 +37,7 @@ public class DitaVisitor implements DocumentVisitor {
     public String onDocument(final Document document, final String transform, final Map<Object, Object> opts,
             final Supplier<String> contentSupplier) {
         if ("table".equals(transform) || inTable) {
-            return xmlEscape(contentSupplier.get());
+            return contentSupplier.get();
         }
 
         ids.clear();
@@ -63,11 +63,11 @@ public class DitaVisitor implements DocumentVisitor {
         final String titleTag = wasInSection ? "b" : "title";
         try {
             return "<" + tag + ofNullable(id).map(i -> " id=\"" + id + "\"").orElse("") + ">"
-                    + ofNullable(title).map(t -> "<" + titleTag + ">" + xmlEscape(t) + "</" + titleTag + ">\n").orElse("")
-                    + xmlEscape(contentSupplier.get()) + "</" + tag + ">\n";
+                    + ofNullable(title).map(t -> "<" + titleTag + ">" + t + "</" + titleTag + ">\n").orElse("")
+                    + contentSupplier.get() + "</" + tag + ">\n";
         } finally {
             if (!wasInSection) {
-                inSection = wasInSection;
+                inSection = false;
             }
         }
     }
@@ -75,25 +75,29 @@ public class DitaVisitor implements DocumentVisitor {
     @Override
     public String onListing(final Block block, final String transform, final Map<Object, Object> opts,
             final Supplier<String> contentSupplier) {
-        return "<codeblock>" + xmlEscape(contentSupplier.get()) + "</codeblock>\n";
+        return "<codeblock>" + contentSupplier.get() + "</codeblock>\n";
     }
 
     @Override
     public String onPreamble(final Block block, final String transform, final Map<Object, Object> opts,
             final Supplier<String> contentSupplier) {
-        return "<abstract>" + xmlEscape(contentSupplier.get()) + "</abstract>\n";
+        return "<abstract>" + contentSupplier.get() + "</abstract>\n";
     }
 
     @Override
     public String onParagraph(final Block block, final String transform, final Map<Object, Object> opts,
             final Supplier<String> contentSupplier) {
+        final String content = contentSupplier.get();
+        if (content.startsWith("<codeph>")) { // already escaped
+            return content;
+        }
         if (block.getBlocks().isEmpty()) {
             if (inTable) {
-                return contentSupplier.get();
+                return content;
             }
-            return "<p>" + xmlEscape(contentSupplier.get()) + "</p>\n";
+            return "<p>" + content + "</p>\n";
         }
-        return contentSupplier.get();
+        return content;
     }
 
     @Override
@@ -106,7 +110,7 @@ public class DitaVisitor implements DocumentVisitor {
     @Override
     public String onAdmonition(final Block block, final String transform, final Map<Object, Object> opts, final String label,
             final Supplier<String> contentSupplier) {
-        return "<note type=\"" + toNoteType(label) + "\">" + xmlEscape(contentSupplier.get()) + "</note>\n";
+        return "<note type=\"" + toNoteType(label) + "\">" + contentSupplier.get() + "</note>\n";
     }
 
     @Override
@@ -134,14 +138,13 @@ public class DitaVisitor implements DocumentVisitor {
     @Override
     public String onPassthrough(final Block block, final String transform, final Map<Object, Object> opts,
                                 final Supplier<String> contentSupplier) {
-        // xmlEscape?
         return contentSupplier.get();
     }
 
     @Override
     public String onQuote(final Block block, final String transform, final Map<Object, Object> opts,
                                 final Supplier<String> contentSupplier) {
-        return "<lq>" + xmlEscape(contentSupplier.get()) + "</lq>";
+        return "<lq>" + contentSupplier.get() + "</lq>";
     }
 
     @Override
@@ -168,7 +171,7 @@ public class DitaVisitor implements DocumentVisitor {
 
     @Override
     public String onLink(final String value) {
-        return "<xref href=\"" + value + "\">" + xmlEscape(value) + "</xref>";
+        return "<xref href=\"" + value + "\">" + value + "</xref>";
     }
 
     @Override
@@ -178,16 +181,21 @@ public class DitaVisitor implements DocumentVisitor {
 
     @Override
     public String onEmphasis(final String value) {
-        return "<emphasis role=\"italic\">" + xmlEscape(value) + "</emphasis>";
+        return "<emphasis role=\"italic\">" + value + "</emphasis>";
+    }
+
+    @Override
+    public String transformRawContent(final String value) {
+        return "<![CDATA[" + StringEscapeUtils.escapeXml10(StringEscapeUtils.unescapeHtml4(value)) + "]]>";
     }
 
     private String onDescriptionListItem(final DescriptionListEntry item) {
-        return "<li>" + xmlEscape(item.getDescription().getText()) + ": " +
-                xmlEscape(item.getTerms().stream().map(ListItem::getText).collect(joining(". "))) + "</li>";
+        return "<li>" + item.getDescription().getText() + ": " +
+                item.getTerms().stream().map(ListItem::getText).collect(joining(". ")) + "</li>";
     }
 
     private String onListItem(final ListItem item) {
-        return "<li>" + xmlEscape(item.getText()) + "</li>";
+        return "<li>" + item.getText() + "</li>";
     }
 
     private Stream<String> convertTableRows(final java.util.List<Row> rows, final Function<Cell, String> cellConverter,
@@ -198,7 +206,6 @@ public class DitaVisitor implements DocumentVisitor {
     private String onRow(final Row row, final Function<Cell, String> cellConverter, final String rowMarker) {
         return "<" + rowMarker + ">" + row.getCells().stream()
                 .map(cellConverter)
-                .map(this::xmlEscape)
                 .collect(joining("</stentry>\n<stentry>", "<stentry>", "</stentry>\n")) + "</" + rowMarker + ">";
     }
 
@@ -215,10 +222,6 @@ public class DitaVisitor implements DocumentVisitor {
         return idBase;
     }
 
-    private String xmlEscape(final String content) {
-        return StringEscapeUtils.escapeXml11(content);
-    }
-
     private String toNoteType(final String label) {
         final String type = label.toLowerCase(Locale.ROOT);
         switch (type) {
@@ -232,6 +235,6 @@ public class DitaVisitor implements DocumentVisitor {
     }
 
     private String sanitize(final String content) {
-        return xmlEscape(content.replace("<<", "").replace(">>", ""));
+        return content.replace("<<", "").replace(">>", "");
     }
 }

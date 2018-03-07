@@ -54,4 +54,8 @@ public interface DocumentVisitor {
     String onPassthrough(Block block, String transform, Map<Object, Object> opts, Supplier<String> contentSupplier);
 
     String onQuote(Block block, String transform, Map<Object, Object> opts, Supplier<String> contentSupplier);
+
+    default String transformRawContent(final String value) {
+        return value;
+    }
 }
