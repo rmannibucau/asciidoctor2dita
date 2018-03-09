@@ -4,7 +4,7 @@
 
   <groupId>com.github.rmannibucau</groupId>
   <artifactId>asciidoctor2dita</artifactId>
-  <version>0.0.3-SNAPSHOT</version>
+  <version>0.0.3</version>
   <name>Asciidoc To Dita Maven Plugin</name>
   <description>Light asciidoc to dita maven converter.</description>
   <url>https://github.com/rmannibucau/asciidoctor2dita</url>
@@ -87,7 +87,7 @@
     <connection>scm:git:https://github.com/rmannibucau/asciidoctor2dita.git</connection>
     <developerConnection>scm:git:https://github.com/rmannibucau/asciidoctor2dita.git</developerConnection>
     <url>https://github.com/rmannibucau/asciidoctor2dita</url>
-    <tag>HEAD</tag>
+    <tag>asciidoctor2dita-0.0.3</tag>
   </scm>
   
   <licenses>
