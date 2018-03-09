@@ -6,6 +6,7 @@ import java.util.function.Supplier;
 
 import org.asciidoctor.ast.Block;
 import org.asciidoctor.ast.Cell;
+import org.asciidoctor.ast.ContentNode;
 import org.asciidoctor.ast.DescriptionList;
 import org.asciidoctor.ast.Document;
 import org.asciidoctor.ast.List;
@@ -13,6 +14,8 @@ import org.asciidoctor.ast.Section;
 import org.asciidoctor.ast.Table;
 
 public interface DocumentVisitor {
+    void setAggregator(final Aggregator aggregator);
+
     String onDocument(Document document, String transform, Map<Object, Object> opts,
                       Supplier<String> contentSupplier);
 
@@ -28,7 +31,7 @@ public interface DocumentVisitor {
     String onParagraph(Block block, String transform, Map<Object, Object> opts,
                        Supplier<String> contentSupplier);
 
-    String onImage(Block block, String transform, Map<Object, Object> opts,
+    String onImage(ContentNode block, String transform, Map<Object, Object> opts,
                    String alt, String path);
 
     String onAdmonition(Block block, String transform, Map<Object, Object> opts,
@@ -48,6 +51,10 @@ public interface DocumentVisitor {
 
     String onLink(String value);
 
+    String onLine(String value);
+
+    String onCallout(String value);
+
     String onTable(Table table, String transform, Map<Object, Object> opts,
                    Function<Cell, String> cellConverter);
 
@@ -55,7 +62,7 @@ public interface DocumentVisitor {
 
     String onQuote(Block block, String transform, Map<Object, Object> opts, Supplier<String> contentSupplier);
 
-    default String transformRawContent(final String value) {
+    default String transformRawContent(final String value, final boolean complete) {
         return value;
     }
 }

@@ -2,6 +2,7 @@ package com.github.rmannibucau.asciidoctor.backend;
 
 import static java.util.Locale.ROOT;
 import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.joining;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -14,7 +15,10 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.zip.GZIPOutputStream;
 
@@ -43,6 +47,7 @@ import org.apache.maven.project.MavenProjectHelper;
 import org.asciidoctor.Asciidoctor;
 import org.asciidoctor.AttributesBuilder;
 import org.asciidoctor.OptionsBuilder;
+import org.asciidoctor.ast.Document;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
@@ -50,13 +55,16 @@ import org.xml.sax.XMLReader;
 @Mojo(defaultPhase = LifecyclePhase.GENERATE_RESOURCES, name = "adoc2dita")
 public class Adoc2DitaMojo extends AbstractMojo {
 
-    @Parameter(property = "adoc2dita.source")
-    private File source;
+    @Parameter(property = "adoc2dita.sources")
+    private Collection<File> sources;
 
     @Parameter(property = "adoc2dita.target")
     private File target;
 
-    @Parameter(property = "adoc2dita.preambleAsParagraph", defaultValue = "true")
+    @Parameter(property = "adoc2dita.images")
+    private File images;
+
+    @Parameter(property = "adoc2dita.preambleAsParagraph", defaultValue = "false")
     private String preambleAsParagraph;
 
     @Parameter(property = "adoc2dita.excludes")
@@ -91,17 +99,19 @@ public class Adoc2DitaMojo extends AbstractMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        if (!source.exists()) {
-            throw new MojoExecutionException(source + " doesnt exist");
+        if (sources == null || sources.isEmpty() || sources.stream().anyMatch(s -> !s.exists())) {
+            throw new MojoExecutionException("at least one source (" + sources + ") doesnt exist");
+        }
+        final long sourceDirectories = sources.stream().filter(File::isDirectory).count();
+        if (sourceDirectories != sources.size() && sourceDirectories > 0) {
+            throw new MojoExecutionException("All sources or none must be a directory, don't mix files and directories please");
         }
 
         final Asciidoctor asciidoctor = Asciidoctor.Factory.create();
-        final AttributesBuilder attributes = AttributesBuilder.attributes()
-                                                                 .attribute("preambleAsParagraph",
-                                                                         this.preambleAsParagraph);
+        final AttributesBuilder attributes = AttributesBuilder.attributes().attribute("preambleAsParagraph",
+                this.preambleAsParagraph);
         ofNullable(this.attributes).ifPresent(attrs -> attrs.forEach(attributes::attribute));
-        final OptionsBuilder options = OptionsBuilder.options().toFile(false).backend("dita")
-                                                     .attributes(attributes);
+        final OptionsBuilder options = OptionsBuilder.options().toFile(false).backend("dita").attributes(attributes);
 
         final TransformerFactory transformerFactory;
         final SAXParserFactory parserFactory;
@@ -114,13 +124,36 @@ public class Adoc2DitaMojo extends AbstractMojo {
             parserFactory = null;
         }
 
-        final boolean fromDirectory = source.isDirectory();
-        (fromDirectory ?
-                Stream.of(source.listFiles(
-                        (dir, name) -> !name.startsWith(".") && name.endsWith(".adoc") && (excludes == null || !excludes.contains(name)))) :
-                Stream.of(source))
-        .forEach(from -> {
-            String output = asciidoctor.renderFile(from, options);
+        final Map<String, Object> opts = options.asMap();
+        final boolean fromDirectory = sourceDirectories == sources.size();
+        final Aggregator aggregator = new Aggregator(null, asciidoctor, options);
+        // 2 rounds to ensure xref are valid
+        IntStream.range(0, 2).forEach(round -> sources.forEach(source -> {
+            aggregator.setImages(images);
+            (fromDirectory ? Stream.of(Objects.requireNonNull(source.listFiles((dir, name) -> isAdoc(name)))) : Stream.of(source))
+                    .forEach(from -> {
+                        try (final GenericConverter converter = new GenericConverter("dita", opts)) {
+                            final String file = Files.readAllLines(from.toPath()).stream().collect(joining("\n"));
+
+                            converter.setAggregator(aggregator);
+
+                            final Document document = asciidoctor.load(file, opts);
+                            final Map<Object, Object> config = new HashMap<Object, Object>(opts) {
+
+                                {
+                                    put("originalFile", from.getName());
+                                }
+                            };
+                            converter.convert(document, null, config);
+                        } catch (final IOException e) {
+                            throw new IllegalArgumentException(e);
+                        }
+                    });
+        }));
+
+        getLog().info("Writing documents");
+        aggregator.getDocuments().forEach((filename, content) -> {
+            String output = content;
             if (format) {
                 try {
                     final Transformer transformer = transformerFactory.newTransformer();
@@ -141,48 +174,59 @@ public class Adoc2DitaMojo extends AbstractMojo {
                     getLog().warn(e.getMessage(), e);
                 }
             }
-            final File outputFile = fromDirectory ?
-                    new File(target, from.getName().replace(".adoc", ".dita")) : target;
+            final File outputFile = fromDirectory ? new File(target, filename) : target;
             outputFile.getParentFile().mkdirs();
             try (final Writer w = new BufferedWriter(new FileWriter(outputFile))) {
                 w.write(output);
             } catch (final IOException e) {
                 throw new IllegalStateException(e);
             }
-            getLog().info("Created " + outputFile);
+            getLog().info("Write " + outputFile);
         });
+        if (images != null) {
+            final Path imgPath = images.toPath();
+            aggregator.getResources()
+                      .forEach(resource -> {
+                          try {
+                              Files.copy(resource.toPath(), new File(target, imgPath.relativize(resource.toPath())
+                                                                                    .toString()).toPath());
+                          } catch (IOException e) {
+                              throw new IllegalStateException(e);
+                          }
+                      });
+        }
 
-        if (fromDirectory) {
+        if (!aggregator.getDocuments().isEmpty() && fromDirectory && formats != null) {
             final Path prefix = target.toPath().toAbsolutePath();
             formats.forEach(format -> {
                 getLog().info(format + "-ing dita sources");
 
                 final File output = new File(buildDirectory, artifactId + "-dita-bundle." + format);
+                output.getParentFile().mkdirs();
 
                 switch (format.toLowerCase(ROOT)) {
-                    case "tar.gz":
-                        try (final TarArchiveOutputStream tarGz = new TarArchiveOutputStream(new GZIPOutputStream(new
-                                FileOutputStream(output)))) {
-                            tarGz.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
-                            for (final String entry : target.list()) {
-                                tarGz(tarGz, new File(target, entry), prefix);
-                            }
-                        } catch (final IOException e) {
-                            throw new IllegalStateException(e.getMessage(), e);
+                case "tar.gz":
+                    try (final TarArchiveOutputStream tarGz = new TarArchiveOutputStream(
+                            new GZIPOutputStream(new FileOutputStream(output)))) {
+                        tarGz.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
+                        for (final String entry : target.list()) {
+                            tarGz(tarGz, new File(target, entry), prefix);
                         }
-                        break;
-                    case "zip":
-                        try (final ZipArchiveOutputStream zos = new ZipArchiveOutputStream(new FileOutputStream
-                                (output))) {
-                            for (final String entry : target.list()) {
-                                zip(zos, new File(target, entry), prefix);
-                            }
-                        } catch (final IOException e) {
-                            throw new IllegalStateException(e.getMessage(), e);
+                    } catch (final IOException e) {
+                        throw new IllegalStateException(e.getMessage(), e);
+                    }
+                    break;
+                case "zip":
+                    try (final ZipArchiveOutputStream zos = new ZipArchiveOutputStream(new FileOutputStream(output))) {
+                        for (final String entry : target.list()) {
+                            zip(zos, new File(target, entry), prefix);
                         }
-                        break;
-                    default:
-                        throw new IllegalArgumentException(format + " is not supported");
+                    } catch (final IOException e) {
+                        throw new IllegalStateException(e.getMessage(), e);
+                    }
+                    break;
+                default:
+                    throw new IllegalArgumentException(format + " is not supported");
                 }
 
                 attach(format, output);
@@ -190,6 +234,10 @@ public class Adoc2DitaMojo extends AbstractMojo {
         } else if (formats != null && !formats.isEmpty()) {
             getLog().warn("You can't bundle a single file, move source/target to directories");
         }
+    }
+
+    private boolean isAdoc(final String name) {
+        return !name.startsWith(".") && name.endsWith(".adoc") && (excludes == null || !excludes.contains(name));
     }
 
     private void tarGz(final TarArchiveOutputStream tarGz, final File f, final Path prefix) throws IOException {
@@ -204,10 +252,16 @@ public class Adoc2DitaMojo extends AbstractMojo {
                     tarGz(tarGz, child, prefix);
                 }
             }
-        } else {
+        } else if (isDitaFile(f)) {
             Files.copy(f.toPath(), tarGz);
             tarGz.closeArchiveEntry();
         }
+    }
+
+    private boolean isDitaFile(final File f) {
+        final String name = f.getName();
+        return name.endsWith(".dita") || name.endsWith(".ditamap") || name.endsWith(".png") || name.endsWith(".jpg")
+                || name.endsWith(".jpeg") || name.endsWith(".webvm");
     }
 
     private void zip(final ZipArchiveOutputStream zip, final File f, final Path prefix) throws IOException {
@@ -222,7 +276,7 @@ public class Adoc2DitaMojo extends AbstractMojo {
                     zip(zip, child, prefix);
                 }
             }
-        } else {
+        } else if (isDitaFile(f)) {
             Files.copy(f.toPath(), zip);
             zip.closeArchiveEntry();
         }
