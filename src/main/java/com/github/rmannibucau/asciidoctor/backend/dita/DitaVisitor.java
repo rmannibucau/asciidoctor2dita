@@ -186,7 +186,7 @@ public class DitaVisitor implements DocumentVisitor {
 
     @Override
     public String transformRawContent(final String value) {
-        return "<![CDATA[" + StringEscapeUtils.escapeXml10(StringEscapeUtils.unescapeHtml4(value)) + "]]>";
+        return "<![CDATA[" + StringEscapeUtils.unescapeHtml4(value) + "]]>";
     }
 
     private String onDescriptionListItem(final DescriptionListEntry item) {
