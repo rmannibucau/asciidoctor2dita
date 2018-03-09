@@ -14,6 +14,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -185,15 +186,15 @@ public class Adoc2DitaMojo extends AbstractMojo {
         });
         if (images != null) {
             final Path imgPath = images.toPath();
-            aggregator.getResources()
-                      .forEach(resource -> {
-                          try {
-                              Files.copy(resource.toPath(), new File(target, imgPath.relativize(resource.toPath())
-                                                                                    .toString()).toPath());
-                          } catch (IOException e) {
-                              throw new IllegalStateException(e);
-                          }
-                      });
+            aggregator.getResources().forEach(resource -> {
+                try {
+                    final File copy = new File(target, imgPath.relativize(resource.toPath()).toString());
+                    copy.getParentFile().mkdirs();
+                    Files.copy(resource.toPath(), copy.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    throw new IllegalStateException(e);
+                }
+            });
         }
 
         if (!aggregator.getDocuments().isEmpty() && fromDirectory && formats != null) {
