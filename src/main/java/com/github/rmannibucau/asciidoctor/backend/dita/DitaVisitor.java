@@ -229,8 +229,9 @@ public class DitaVisitor implements DocumentVisitor {
         String anchorValue = "";
         if (anchor > 0) {
             anchorValue = '#' + link.substring(anchor + 1);
-            link = link.substring(0, anchor).replace(".adoc", "");
+            link = link.substring(0, anchor);
         }
+        link = link.replace(".adoc", "");
         final boolean isMap = aggregator.fileExists("dm-" + link + ".ditamap");
         link = (isMap ? "dm" : "c") + "-" +  link +".dita" + (isMap ? "map" : "") + anchorValue;
         return "<xref href=\"" + link + "\">" + value + "</xref>";
